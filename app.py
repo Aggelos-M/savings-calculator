@@ -38,50 +38,62 @@ with st.form("savings_form"):
         "Εργάσιμες ημέρες ανά μήνα", min_value=1, value=22, step=1
     )
 
+    # Προαιρετικό πεδίο: μηνιαίο κόστος συνδρομής του agent.
+    # Προεπιλογή 0 -> αν δεν συμπληρωθεί, η καθαρή εξοικονόμηση ισούται με τη μεικτή.
+    agent_subscription_cost = st.number_input(
+        "Μηνιαίο κόστος συνδρομής agent (€) — προαιρετικό", min_value=0.0, value=0.0, step=10.0
+    )
+
     #Το κουμπί υποβολής της φόρμας
     submitted = st.form_submit_button("Υπολογισμός")
 
 
 # ΥΠΟΛΟΓΙΣΜΟΙ (εκτελούνται μόνο αφού πατηθεί το κουμπί ΥΠΟΛΟΓΙΣΜΟΣ).
 if submitted:
-    # Επιπλέον έλεγχος εγκυρότητας: αν όλες οι τιμές δεν βγάζουν νόημα,
-    # ενημερώνουμε τον χρήστη αντί να δείξουμε λάθος/παράλογα αποτελέσματα.
-    if calls_per_day <= 0 or avg_duration <= 0 or hourly_cost <= 0:
-        st.error("Οι τιμές πρέπει να είναι θετικές .")
-    else:
-        # Ώρες εργασίας τον μήνα που απαιτούνται για ΟΛΕΣ τις κλήσεις:
-        # κλήσεις/ημέρα × διάρκεια (λεπτά) × εργάσιμες ημέρες / 60 (μετατροπή λεπτών σε ώρες)
-        hours_per_month = calls_per_day * avg_duration * working_days / 60
+    hours_per_month = calls_per_day * avg_duration * working_days / 60 ## η ώρες ανά μήνα που αφιερώνει ο υπάλληλος στις κλήσεις (σε ώρες, όχι λεπτά)
 
-        # Ώρες που αναλαμβάνει ο agent, με βάση το ποσοστό που δώσαμε
-        agent_hours = hours_per_month * agent_percentage / 100
+    # Ώρες που αναλαμβάνει ο agent, με βάση το ποσοστό που δώσαμε
+    agent_hours = hours_per_month * agent_percentage / 100
 
-        # Μηνιαία εξοικονόμηση σε ευρώ = ώρες που γλιτώνει ο agent × ωριαίο κόστος υπαλλήλου
-        monthly_savings = agent_hours * hourly_cost
+    # Μηνιαία εξοικονόμηση σε ευρώ = ώρες που γλιτώνει ο agent × ωριαίο κόστος υπαλλήλου
+    monthly_savings = agent_hours * hourly_cost
 
-        # Ετήσια εξοικονόμηση = μηνιαία εξοικονόμηση × 12 μήνες
-        annual_savings = monthly_savings * 12
+    # Ετήσια εξοικονόμηση = μηνιαία εξοικονόμηση × 12 μήνες
+    annual_savings = monthly_savings * 12
 
-        # Συνολικό μηνιαίο κόστος ΠΡΙΝ τον agent (αν όλες τις κλήσεις τις έκανε άνθρωπος)
-        cost_before = hours_per_month * hourly_cost
+    # Καθαρή (net) εξοικονόμηση: αφαιρούμε το μηνιαίο κόστος συνδρομής του agent
+    # από τη μεικτή εξοικονόμηση -> αυτό είναι το πραγματικό όφελος για την εταιρεία
+    net_monthly_savings = monthly_savings - agent_subscription_cost
+    net_annual_savings = net_monthly_savings * 12
 
-        #Συνολικό μηνιαίο κόστος ΜΕΤΑ τον agent (μόνο οι ώρες που ΔΕΝ ανέλαβε ο agent)
-        cost_after = cost_before - monthly_savings
+    # Συνολικό μηνιαίο κόστος ΠΡΙΝ τον agent (αν όλες τις κλήσεις τις έκανε άνθρωπος)
+    cost_before = hours_per_month * hourly_cost
 
-        #Εμφάνιση αποτελεσμάτων
-        st.subheader("Αποτελέσματα")
+    #Συνολικό μηνιαίο κόστος ΜΕΤΑ τον agent (οι ώρες που ΔΕΝ ανέλαβε ο agent,
+    # συν το μηνιαίο κόστος συνδρομής του agent)
+    cost_after = cost_before - monthly_savings + agent_subscription_cost
 
-        #st.metric δείχνει μια τιμή σε "κάρτα"  εδώ μορφοποιούμε με 2 δεκαδικά
-        col1, col2 = st.columns(2)
-        col1.metric("Ώρες που εξοικονομούνται / μήνα", f"{agent_hours:.2f} ώρες")
-        col2.metric("Μηνιαία εξοικονόμηση", f"€ {monthly_savings:,.2f}")
+    #Εμφάνιση αποτελεσμάτων
+    st.subheader("Αποτελέσματα")
 
-        st.metric("Ετήσια εξοικονόμηση", f"€ {annual_savings:,.2f}")
+    #st.metric δείχνει μια τιμή σε "κάρτα"  εδώ μορφοποιούμε με 2 δεκαδικά
+    col1, col2 = st.columns(2)
+    col1.metric("Ώρες που εξοικονομούνται / μήνα", f"{agent_hours:.2f} ώρες")
+    col2.metric("Μηνιαία εξοικονόμηση (μεικτή)", f"€ {monthly_savings:,.2f}")
 
-        # Γράφημα σύγκρισης μηνιαίου κόστους πριν/μετά 
-        st.subheader("Σύγκριση Μηνιαίου Κόστους")
+    st.metric("Ετήσια εξοικονόμηση (μεικτή)", f"€ {annual_savings:,.2f}")
 
-        # Το st.bar_chart θέλει λίστα τιμών ανά "στήλη" -> βάζουμε κάθε τιμή σε λίστα του ενός στοιχείου
-        chart_data = {"Πριν τον Agent": [cost_before], "Μετά τον Agent": [cost_after]}
-        st.bar_chart(chart_data)
-        
+    # Η καθαρή εξοικονόμηση εμφανίζεται μόνο αν έχει οριστεί κόστος συνδρομής,
+    # ώστε να μην μπερδεύουμε τον χρήστη με μια μετρική ίδια με τη μεικτή
+    if agent_subscription_cost > 0:
+        st.subheader("Καθαρή Εξοικονόμηση")
+        col3, col4 = st.columns(2)
+        col3.metric("Καθαρή μηνιαία εξοικονόμηση", f"€ {net_monthly_savings:,.2f}")
+        col4.metric("Καθαρή ετήσια εξοικονόμηση", f"€ {net_annual_savings:,.2f}")
+
+    # Γράφημα σύγκρισης μηνιαίου κόστους πριν/μετά 
+    st.subheader("Σύγκριση Μηνιαίου Κόστους")
+
+    # Το st.bar_chart θέλει λίστα τιμών ανά "στήλη" -> βάζουμε κάθε τιμή σε λίστα του ενός στοιχείου
+    chart_data = {"Πριν τον Agent": [cost_before], "Μετά τον Agent": [cost_after]}
+    st.bar_chart(chart_data)
