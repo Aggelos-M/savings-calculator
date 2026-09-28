@@ -9,7 +9,7 @@ SAVINGS-CALCULATOR.
 το μηνιαίο κόστος συνδρομής του agent (€, προαιρετικό)
 
 WEBSITE LINK:
-https://savings-calculator-dvza88agjou9cvjelhsshd.streamlit.app
+https://savings-calculator-dvza88agjou9cvjelhsshd.streamlit.app/
 
 
 
